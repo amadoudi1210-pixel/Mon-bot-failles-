@@ -1,0 +1,139 @@
+import random
+import time
+import logging
+from telegram import ReplyKeyboardMarkup, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+
+# --- CONFIGURATION ---
+TOKEN = "8745318621:AAGfnGlKFFBluDBrQpMhpekx54laLzgXH0g"
+CODE_PROMO = "DIAO226"
+ADMIN_ID = 8533072348  
+CANAL_ID = -1003635422095 
+
+LINK_MELBET = "https://refpa3665.com/L?tag=d_5046978m_45415c_&site=5046978&ad=45415&r=registration"
+LINK_888STARZ = "https://top100bonus.com/L?tag=d_5073302m_76815c_&site=5073302&ad=76815"
+
+USERS_FILE = "users.txt"
+
+# MESSAGE DE DIFFUSION MIS À JOUR (TOUT EN GRAS)
+MESSAGE_CANAL = (
+    "📢 **MESSAGE IMPORTANT**\n\n"
+    "**RESTEZ CONNECTÉS LA FAMILLE !** 🔥\n"
+    "**JE VOUS PRÉPARE DES VRAIS COUPONS, DES STRATÉGIES EXCLUSIVES ET DES NOUVELLES FAILLES 1XGAMES.**\n\n"
+    "**ATTENTION : LES INSCRIPTIONS SANS DÉPÔT NE SONT PAS VALIDES POUR L'ALGORITHME.** ❌\n\n"
+    "**PROFITEZ-EN POUR VOUS INSCRIRE SUR MELBET OU 888STARZ AVEC LE CODE PROMO : DIAO226 ET FAITES VOTRE DÉPÔT POUR ACTIVER LES FAILLES !** 🔔"
+)
+
+# --- SAUVEGARDE ---
+def save_user(user_id):
+    with open(USERS_FILE, "a+") as f:
+        f.seek(0)
+        content = f.read()
+        if str(user_id) not in content:
+            f.write(f"{user_id}\n")
+
+# --- GÉNÉRATEUR ---
+def get_prediction(game):
+    fiabilite = round(random.uniform(94.5, 99.9), 1)
+    footer = f"\n\n🔥 **Fiabilité : {fiabilite}%**\n⚠️ *Activation via Code : {CODE_PROMO}*"
+    
+    if "Apple" in game:
+        grid = "🍎 **APPLE OF FORTUNE**\n\n"
+        for _ in range(5):
+            row = ["⬛"] * 5
+            row[random.randint(0, 4)] = "🍎"
+            grid += "".join(row) + "\n"
+        return grid + footer
+    elif "Crash" in game:
+        return f"🚀 **CRASH**\n\n📈 Cote : {round(random.uniform(1.4, 9.8), 2)}x" + footer
+    elif "Thimbles" in game:
+        pos = random.randint(1, 3)
+        cups = ["🥤", "🥤", "🥤"]
+        cups[pos-1] = "🎾"
+        visual = f"      1️⃣       2️⃣       3️⃣\n     {cups[0]}      {cups[1]}      {cups[2]}"
+        return f"🎲 **THIMBLES**\n\n{visual}\n\n✅ Gobelet : **{pos}**" + footer
+    elif "Mines" in game:
+        grid = "💎 **GEMS AND MINES**\n\n"
+        for _ in range(5):
+            row = ["⬛"] * 5
+            row[random.randint(0, 4)] = "💎"
+            grid += "".join(row) + "\n"
+        return grid + footer
+    elif "Kamikaze" in game:
+        grid = "✈️ **KAMIKAZE**\n\n"
+        for _ in range(5):
+            row = ["🟦"] * 5
+            row[random.randint(0, 4)] = "✈️"
+            grid += "".join(row) + "\n"
+        return grid + footer
+    elif "Under" in game:
+        res = random.choice(["MOINS DE 7", "PLUS DE 7", "ÉGAL À 7"])
+        return f"🎲 **UNDER/OVER 7**\n\nRésultat : **{res}**" + footer
+    return "🎰 Analyse..."
+
+# --- NOTIFICATION AUTO ---
+async def auto_notif(context: ContextTypes.DEFAULT_TYPE):
+    try: await context.bot.send_message(chat_id=CANAL_ID, text=MESSAGE_CANAL, parse_mode='Markdown')
+    except: pass
+
+# --- HANDLERS ---
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    save_user(user_id)
+    msg = (
+        f"Salut {update.effective_user.first_name} ! 👋\n\n"
+        f"**L'algorithme MELBET & 888STARZ est prêt.**\n\n"
+        f"🚀 **ATTENTION :** Les inscriptions sans dépôt ne sont pas valides. "
+        f"Utilisez le code promo `{CODE_PROMO}` et rechargez votre compte pour activer les failles."
+    )
+    ikb = [[InlineKeyboardButton("🔹 MELBET", url=LINK_MELBET)], [InlineKeyboardButton("🔸 888STARZ", url=LINK_888STARZ)]]
+    rkp = [["📱 MENU JEUX"], ["📸 PREUVES", "❓ QUESTION"]]
+    if user_id == ADMIN_ID: rkp.append(["📢 DIFFUSION CANAL"])
+    
+    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(ikb), parse_mode='Markdown')
+    await update.message.reply_text("Sélectionnez une option :", reply_markup=ReplyKeyboardMarkup(rkp, resize_keyboard=True))
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    user_id = update.effective_user.id
+    ud = context.user_data
+
+    if text == "📱 MENU JEUX":
+        kb = [["🍎 Apple Of Fortune", "🚀 Crash"], ["✈️ Kamikaze", "💎 Gems And Mines"], ["🎾 Thimbles", "🎲 Under/Over 7"], ["⬅️ RETOUR"]]
+        await update.message.reply_text("🕹️ **CHOISISSEZ UN JEU :**", reply_markup=ReplyKeyboardMarkup(kb, resize_keyboard=True), parse_mode='Markdown')
+
+    elif text == "📢 DIFFUSION CANAL" and user_id == ADMIN_ID:
+        try:
+            await context.bot.send_message(chat_id=CANAL_ID, text=MESSAGE_CANAL, parse_mode='Markdown')
+            await update.message.reply_text("✅ Message envoyé au canal !")
+        except: await update.message.reply_text("❌ Erreur canal.")
+
+    elif any(g in text for g in ["Apple", "Crash", "Kamikaze", "Gems", "Thimbles", "Under"]):
+        ud['game'] = text
+        await update.message.reply_text("🆔 **Envoyez votre ID Melbet ou 888Starz pour vérification :**", parse_mode='Markdown')
+
+    elif text.isdigit() and len(text) > 4:
+        s = await update.message.reply_text("🔍 *Analyse ID...*", parse_mode='Markdown')
+        time.sleep(1); await s.edit_text("🛰️ *Vérification Code DIAO226...*", parse_mode='Markdown')
+        time.sleep(1); await s.edit_text("✅ **COMPTE VALIDÉ !**", parse_mode='Markdown')
+        rk = [["🔄 GÉNÉRER PRÉDICTION"], ["⬅️ RETOUR", "📱 MENU JEUX"]]
+        await update.message.reply_text(get_prediction(ud.get('game', "Apple")), reply_markup=ReplyKeyboardMarkup(rk, resize_keyboard=True), parse_mode='Markdown')
+
+    elif text == "🔄 GÉNÉRER PRÉDICTION":
+        await update.message.reply_text(get_prediction(ud.get('game', "Apple")), parse_mode='Markdown')
+        ud['stk'] = ud.get('stk', 0) + 1
+        if ud['stk'] >= 3:
+            ud['stk'] = 0
+            try:
+                with open('ma_voix_off.mp3', 'rb') as v:
+                    await update.message.reply_voice(voice=v, caption="🎙️ Message de l'expert")
+            except: pass
+
+    elif text == "⬅️ RETOUR": await start(update, context)
+
+if __name__ == '__main__':
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.job_queue.run_repeating(auto_notif, interval=7200, first=10) 
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+    print("Bot lancé avec succès !"); app.run_polling()

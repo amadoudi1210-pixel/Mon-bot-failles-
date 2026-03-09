@@ -1,0 +1,158 @@
+import requests
+import random
+import asyncio
+from datetime import datetime
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+)
+
+# =========================
+# 🔐 CONFIGURATION
+# =========================
+BOT_TOKEN = "8559892990:AAES-IVTcZ8tcsUkUEM7MEhg18JXWXnFmCA"
+API_FOOTBALL_KEY = "e5cd89ee38d3af07756f56192d87195f"
+CHANNEL_ID = 1003665892803
+
+HEADERS = {
+    "X-RapidAPI-Key": API_FOOTBALL_KEY,
+    "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
+}
+
+# =========================
+# 🎨 STYLES
+# =========================
+TITLES = ["🔥 COMBINÉ DU JOUR 🔥", "⚽ PRONOSTICS DU JOUR ⚽", "💎 TICKET FOOTBALL 💎"]
+EMOJIS = ["⚽", "🔥", "🎯", "🚀", "💥"]
+PREDICTIONS = [
+    "Victoire domicile",
+    "Double chance 1X",
+    "Plus de 1.5 buts",
+    "Plus de 2.5 buts"
+]
+
+# =========================
+# ⚽ MATCHS DU JOUR
+# =========================
+def get_today_matches():
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    url = "https://api-football-v1.p.rapidapi.com/v3/fixtures"
+    r = requests.get(url, headers=HEADERS, params={"date": today})
+    data = r.json()
+
+    matchs = []
+    if "response" in data:
+        for m in data["response"]:
+            matchs.append({
+                "league": m["league"]["name"],
+                "country": m["league"]["country"],
+                "home": m["teams"]["home"]["name"],
+                "away": m["teams"]["away"]["name"],
+                "time": m["fixture"]["date"][11:16]
+            })
+
+    return random.sample(matchs, min(5, len(matchs)))
+
+# =========================
+# 📤 ENVOI PRONOSTIC
+# =========================
+async def send_pronostic(bot: Bot):
+    matchs = get_today_matches()
+    if not matchs:
+        return
+
+    msg = f"*{random.choice(TITLES)}*\n\n"
+
+    for i, m in enumerate(matchs, 1):
+        msg += (
+            f"{random.choice(EMOJIS)} *{i}. {m['home']} 🆚 {m['away']}*\n"
+            f"🏆 _{m['league']} ({m['country']})_\n"
+            f"⏰ *{m['time']}*\n"
+            f"➡️ *{random.choice(PREDICTIONS)}*\n\n"
+        )
+
+    msg += "🎯 *Objectif cote ≈ 5*\n⚠️ _Jouez responsable_"
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🟢 Conseil", callback_data="conseil"),
+            InlineKeyboardButton("💎 PREMIUM", callback_data="premium"),
+            InlineKeyboardButton("🔴 Pronostic", callback_data="pronostic"),
+        ]
+    ])
+
+    await bot.send_message(
+        chat_id=CHANNEL_ID,
+        text=msg,
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+
+# =========================
+# 🤖 COMMANDES
+# =========================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👋 *Bienvenue sur Professionnels du Foot ⚽*\n\n"
+        "📊 Pronostics automatiques\n💡 Conseils & Premium",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("🟢 Conseil", callback_data="conseil"),
+                InlineKeyboardButton("💎 PREMIUM", callback_data="premium"),
+                InlineKeyboardButton("🔴 Pronostic", callback_data="pronostic"),
+            ]
+        ])
+    )
+
+async def send_now(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await send_pronostic(context.bot)
+    await update.message.reply_text("✅ Pronostics envoyés dans le canal.")
+
+async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+
+    if q.data == "conseil":
+        await q.message.reply_text("💡 Gère ta bankroll et évite le all-in.")
+    elif q.data == "premium":
+        await q.message.reply_text("💎 PREMIUM : tickets VIP + analyses.")
+    elif q.data == "pronostic":
+        await q.message.reply_text("📊 Les pronostics arrivent automatiquement.")
+
+# =========================
+# ⏰ AUTOMATISATION
+# =========================
+async def scheduler(app):
+    sent = set()
+
+    while True:
+        now = datetime.now()
+        today = now.strftime("%Y-%m-%d")
+        hour = now.hour
+
+        if today not in sent and hour in [8, 15, random.randint(8, 15)]:
+            await send_pronostic(app.bot)
+            sent.add(today)
+
+        await asyncio.sleep(300)
+
+# =========================
+# 🚀 LANCEMENT
+# =========================
+async def main():
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("send", send_now))
+    app.add_handler(CallbackQueryHandler(buttons))
+
+    print("🤖 Bot PRO lancé avec succès")
+    asyncio.create_task(scheduler(app))
+    await app.run_polling()
+
+if __name__ == "__main__":
+    asyncio.run(main())
